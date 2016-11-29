@@ -48,6 +48,9 @@ void Server::SetIovBuffer()
     {
         m_recv_list[i].iov_base	    = &m_recv_buf[i];
         m_recv_list[i].iov_len 		= sizeof(m_recv_buf);
+
+        m_send_list[i].iov_base	    = &m_send_buf[i];
+        m_send_list[i].iov_len 		= sizeof(m_send_buf);
     }
 }
 
@@ -56,24 +59,70 @@ void Server::SetIovBuffer()
 void Server::ReceiveList(SOCK_INFO& sockInfo)
 {
     int iRead;
-    int len;
     CLNT_DATA_INFO dataInfo;
 
-    
+    char* path;
+    char* clntIp;
+    char* clntPort;
+
+    time_t modTime;
+    struct tm localTime;
+    char timeBuf[80];
+
     while((iRead = readv(sockInfo.sock, m_recv_list, 1) != 0))
     {
         dataInfo = m_recv_buf[0];
+        if(strlen(dataInfo.buf) == 0)
+            break;
+        
 
-        struct sockaddr_in* pV4Addr = (struct sockaddr_in*)&m_recv_buf.addr;
-        struct in_addr ipAddr = pV4Addr->sin_addr;
-        char str[100];
-        inet_ntop(AF_INET, &ipAddr, str, INET_ADDRSTRLEN );
-        printf("%s, %s \n", str, dataInfo.buf);
+        path = dataInfo.buf;
+        clntIp = inet_ntoa(sockInfo.addr.sin_addr);
+        clntPort = dataInfo.port;
+
+        modTime = dataInfo.modTime;
+        localtime_r(&modTime, &localTime);
+        strftime(timeBuf, 80, "%Y-%m-%d %H:%M:%S", &localTime);
+
+        InsertRow(path, timeBuf, clntIp, clntPort);
     }
+
 }
 
 
+void Server::SendList(SOCK_INFO& sockInfo)
+{
+    bool sendCheck = false;
+    int iCnt = 0;
 
+    memset(m_send_buf, 0, sizeof(m_send_buf));
+
+    MYSQL_ROW row;
+    int num_fields = mysql_num_fields(m_mysqlResult);
+    while ((row = mysql_fetch_row(m_mysqlResult))) 
+    {
+        strcpy(m_send_buf[iCnt].buf, row[0]);
+        strcpy(m_send_buf[iCnt].ip, row[2]);
+        strcpy(m_send_buf[iCnt].port, row[3]);
+
+        iCnt++;
+
+        if(iCnt == 10)
+        {
+            writev(sockInfo.sock, m_send_list, iCnt);
+            iCnt = 0;
+
+            memset(m_send_buf, 0, sizeof(m_send_buf));
+            sendCheck = true;
+            continue;
+        }
+
+        sendCheck = false;
+    }
+
+    if(iCnt != 0 && !sendCheck)
+        writev(sockInfo.sock, m_send_list, iCnt);
+}
 
 
 
@@ -87,4 +136,88 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
 SOCK_INFO& Server::GetSockInfo()
 {
     return m_sockInfo;
+}
+
+
+void Server::InitMySQL(char* host, char* user, char* passwd, char* db)
+{
+    mysql_init(&m_mysql);
+    m_mysqlConnection = mysql_real_connect(&m_mysql, host, user, passwd, db, 0, NULL, 0);
+    if(m_mysqlConnection == NULL)
+        exit_message("mysql_real_connect() error!");
+    else
+        puts("mysql connected...");
+}
+
+
+void Server::CreateTable(char* table)
+{
+    memset(m_sql, 0, BUF_SIZE);
+    sprintf(m_sql, "CREATE TABLE IF NOT EXISTS %s(path VARCHAR(1024), date DATETIME, ip VARCHAR(20), port VARCHAR(10), PRIMARY KEY(path)) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", table);
+
+    int state = mysql_query(m_mysqlConnection, m_sql);
+    if(state != 0)
+        exit_message("mysql_query error() : create table");
+}
+
+
+void Server::InsertRow(char* path, char* date, char* ip, char* port)
+{
+    memset(m_sql, 0, BUF_SIZE);
+    sprintf(m_sql, "REPLACE INTO lists VALUES( '%s', '%s', '%s', '%s')", path, date, ip, port);
+
+    int state = mysql_query(m_mysqlConnection, m_sql);
+    if(state != 0)
+        exit_message("mysql_query error() : insert values");
+}
+
+void Server::SelectRow()
+{
+    SelectRow(NULL, NULL, NULL);
+}
+void Server::SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL)
+{
+    memset(m_sql, 0, BUF_SIZE);
+
+    char sql[BUF_SIZE];
+    char tmp[BUF_SIZE];
+    memset(sql, 0, BUF_SIZE);
+    memset(tmp, 0, BUF_SIZE);
+
+    if(!path && !date && !ip)
+        strcpy(m_sql, "SELECT * from lists");
+    else
+    {
+        if(path)
+        {
+            sprintf(sql, "%spath = '%s' AND ", tmp, path);
+            strcpy(tmp, sql);
+        }
+        if(date)
+        {
+            sprintf(sql, "%sdate = '%s' AND ", tmp, date);
+            strcpy(tmp, sql);
+        }
+        if(ip)
+        {
+            sprintf(sql, "%sip = '%s' AND", tmp, ip);
+            strcpy(tmp, sql);
+        }
+        
+        int len = strlen(tmp);
+        memset(sql, 0, BUF_SIZE);
+        strncpy(sql, tmp, len - 4);
+        strcpy(tmp, sql);
+
+        sprintf(sql, "WHERE %s", tmp);
+        sprintf(m_sql, "SELECT * from lists %s", sql);
+    }
+
+    int state = mysql_query(m_mysqlConnection, m_sql);
+    if(state != 0)
+        exit_message("mysql_query error() : insert values");
+
+    m_mysqlResult = mysql_store_result(m_mysqlConnection);
+    if (m_mysqlResult == NULL)
+        exit_message("mysql_store_result() error!");
 }

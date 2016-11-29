@@ -11,6 +11,11 @@
 #include <sys/uio.h>
 #include <sys/stat.h>
 #include <vector>
+#include <map>
+#include <list>
+#include <iostream>
+#include <my_global.h>
+#include <mysql.h>
 
 #include "Common.h"
 #include "Define.h"
@@ -24,7 +29,7 @@ using namespace std;
 
 
 #ifdef __DEBUG__
-#define db printf("!!!!!!!!!!!! CONFIRM !!!!!!!!!!!!! \n");
+#define ddb printf("!!!!!!!!!!!! CONFIRM !!!!!!!!!!!!! \n");
 
 
 

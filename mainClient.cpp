@@ -19,7 +19,7 @@ int main(void)
     
     client->AskSocket(sockInfo, ip, port);
     client->SendList();
-
+    client->ReceiveList();
 
 
     return 0;

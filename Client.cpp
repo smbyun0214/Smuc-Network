@@ -42,6 +42,7 @@ void Client::InitializeClient(char *ip, char *port, char* folder)
 
 void Client::InitializeServer(char* port)
 {
+    SetPort(port);
     SetAddr(m_mySockInfo.addr, NULL, port);
 }
 
@@ -65,7 +66,12 @@ void Client::SetIovBuffer()
     {
         m_send_list[i].iov_base	    = &m_send_buf[i];
         m_send_list[i].iov_len 		= sizeof(m_send_buf);
+        
+        m_recv_list[i].iov_base	    = &m_recv_buf[i];
+        m_recv_list[i].iov_len 		= sizeof(m_recv_buf);
     }
+
+    memset(m_send_buf, 0, sizeof(m_send_buf));
 }
 
 void Client::SetPort(char *port)
@@ -74,7 +80,7 @@ void Client::SetPort(char *port)
 }
 
 
-void Client::_SendList(char *path, bool flag = false)
+void Client::_SendList(char *path, time_t modTime, bool flag = false)
 {
     static int iCnt = 0;
 
@@ -82,7 +88,7 @@ void Client::_SendList(char *path, bool flag = false)
     {
         if(iCnt != 0)
         {
-            db
+            ddb
             writev(m_sockInfo.sock, m_send_list, iCnt + 1);
             send(m_sockInfo.sock, NULL, 0, MSG_OOB);
         }
@@ -90,8 +96,9 @@ void Client::_SendList(char *path, bool flag = false)
         return;
     }
 
-    m_send_buf[iCnt].addr = m_mySockInfo.addr;
     strcpy(m_send_buf[iCnt].buf, path);
+    m_send_buf[iCnt].modTime = modTime;
+    strcpy(m_send_buf[iCnt].port, m_port);
     
     iCnt++;
 
@@ -135,7 +142,12 @@ void Client::ExploreDirectory(char *path)
         {    
             char file[BUF_SIZE];
             sprintf(file, "%s/%s", path, ent->d_name);
-            _SendList(file);
+
+            struct stat state;
+            if(stat(file, &state) == -1)
+                exit_message("stat() error!");
+
+            _SendList(file, state.st_mtime);
         }
     }
 
@@ -145,9 +157,32 @@ void Client::ExploreDirectory(char *path)
 void Client::SendList()
 {
     ExploreDirectory(m_shared);
-    _SendList(NULL, true);
+    _SendList(NULL, NULL, true);
 }
 
+
+void Client::ReceiveList()
+{
+    int iRead;
+    CLNT_DATA_INFO dataInfo;
+
+    char* path;
+    char* ip;
+    char* port;
+
+    while((iRead = readv(m_sockInfo.sock, m_recv_list, 1) != 0))
+    {
+        dataInfo = m_recv_buf[0];
+        if(strlen(dataInfo.buf) == 0)
+            break;
+        
+        path = dataInfo.buf;
+        ip = dataInfo.ip;
+        port = dataInfo.port;
+
+        printf("%s %s %s \n", path, ip, port);
+    }
+}
 
 
 

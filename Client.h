@@ -8,10 +8,14 @@ class Client
 
         SOCK_INFO   m_mySockInfo;
         char        m_port[PORT_SIZE];
+
         char        m_shared[BUF_SIZE];
 
         struct iovec            m_send_list[IOV_LIST_CNT];
         CLNT_DATA_INFO          m_send_buf[IOV_LIST_CNT];
+
+        struct iovec            m_recv_list[IOV_LIST_CNT];
+        CLNT_DATA_INFO          m_recv_buf[IOV_LIST_CNT];
 
     public:
         Client();
@@ -36,7 +40,9 @@ class Client
     public:
         void SendList();
         void ExploreDirectory(char *path);
-        void _SendList(char *path, bool flag);
+        void _SendList(char *path, time_t modTime, bool flag);
+
+        void ReceiveList();
         
 
 
