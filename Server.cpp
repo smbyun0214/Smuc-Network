@@ -64,7 +64,11 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
     {
         dataInfo = m_recv_buf[0];
 
-        printf("%s, %s \n", inet_ntoa(dataInfo.addr.sin_addr), dataInfo.buf);
+        struct sockaddr_in* pV4Addr = (struct sockaddr_in*)&m_recv_buf.addr;
+        struct in_addr ipAddr = pV4Addr->sin_addr;
+        char str[100];
+        inet_ntop(AF_INET, &ipAddr, str, INET_ADDRSTRLEN );
+        printf("%s, %s \n", str, dataInfo.buf);
     }
 }
 

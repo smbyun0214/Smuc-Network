@@ -10,4 +10,4 @@ g++ -o client mainClient.cpp $cmd -I.-lstdc++ -D_REENTRANT -lpthread
 g++ -o server mainServer.cpp $cmd -I.-lstdc++ -D_REENTRANT -lpthread
 
 echo "G++ COMPILED"
-./server
+# ./server
