@@ -10,21 +10,18 @@ int main(void)
     char db[]     = "FileList";
     char table[]  = "lists";
 
-    Server* server = new Server(port);
-
-    SOCK_INFO& sockInfo = server->GetSockInfo();
-     
-    server->InitSock(sockInfo, port);
-    server->InitMySQL(host, user, passwd, db);
-    server->CreateTable(table);
+    Server* server = new Server();
     
-    SOCK_INFO& clntInfo = server->AcceptSocket(sockInfo, port);
-    server->SetIovBuffer();
-    server->ReceiveList(clntInfo);
+    server->InitSock(port);
+    server->InitMySQL(host, user, passwd, db, table);
+    server->Initialize();
+    
+    server->RunReceive();
 
-    server->SelectRow();
-    server->SendList(clntInfo);
+    // server->SelectRow();
+    // server->SendList(clntInfo);
     
 
+    delete server;
     return 0;
 }

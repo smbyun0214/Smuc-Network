@@ -1,8 +1,7 @@
 #include "Server.h"
 
-Server::Server(char *port)
+Server::Server()
 {
-
 }
 
 Server::~Server()
@@ -10,7 +9,12 @@ Server::~Server()
     close(m_sockInfo.sock);
 }
 
-void Server::InitSock(SOCK_INFO& sockInfo, char *port)
+void Server::InitSock(char *port)
+{
+    CreateSocket(m_sockInfo, port);
+}
+
+void Server::CreateSocket(SOCK_INFO& sockInfo, char *port)
 {
     sockInfo.sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
    
@@ -30,7 +34,7 @@ void Server::InitSock(SOCK_INFO& sockInfo, char *port)
 }
 
 
-SOCK_INFO& Server::AcceptSocket(SOCK_INFO& sockInfo, char* port)
+SOCK_INFO& Server::AcceptSocket(SOCK_INFO& sockInfo)
 {
     SOCK_INFO* clnt_sockInfo = new SOCK_INFO();
     socklen_t clnt_addr_sz = sizeof(clnt_sockInfo->addr);
@@ -86,7 +90,6 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
 
         InsertRow(path, timeBuf, clntIp, clntPort);
     }
-
 }
 
 
@@ -139,7 +142,7 @@ SOCK_INFO& Server::GetSockInfo()
 }
 
 
-void Server::InitMySQL(char* host, char* user, char* passwd, char* db)
+void Server::InitMySQL(char* host, char* user, char* passwd, char* db, char* table)
 {
     mysql_init(&m_mysql);
     m_mysqlConnection = mysql_real_connect(&m_mysql, host, user, passwd, db, 0, NULL, 0);
@@ -147,6 +150,8 @@ void Server::InitMySQL(char* host, char* user, char* passwd, char* db)
         exit_message("mysql_real_connect() error!");
     else
         puts("mysql connected...");
+
+    CreateTable(table);
 }
 
 
@@ -175,6 +180,8 @@ void Server::SelectRow()
 {
     SelectRow(NULL, NULL, NULL);
 }
+
+
 void Server::SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL)
 {
     memset(m_sql, 0, BUF_SIZE);
@@ -220,4 +227,45 @@ void Server::SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL)
     m_mysqlResult = mysql_store_result(m_mysqlConnection);
     if (m_mysqlResult == NULL)
         exit_message("mysql_store_result() error!");
+}
+
+void Server::Initialize()
+{
+    pthread_mutex_init(&m_mutx, NULL);
+    SetIovBuffer();
+}
+
+
+void Server::RunReceive()
+{
+    while(1)
+    {
+        SOCK_INFO& clntInfo = AcceptSocket(m_sockInfo);
+
+        pthread_mutex_lock(&m_mutx);
+        m_listSockInfo.push_back(&clntInfo);
+        pthread_mutex_unlock(&m_mutx);
+
+        pthread_create(&m_thId, NULL, Server::th_Handle_Client, (void*) &clntInfo);
+        pthread_detach(m_thId);
+        printf("Connected client IP: %s \n", inet_ntoa(clntInfo.addr.sin_addr));
+    }
+}
+
+void* Server::th_Handle_Client(void* arg)
+{    
+    SOCK_INFO& sockInfo = *((SOCK_INFO*) arg);
+    ReceiveList(sockInfo);
+
+    for(m_iter = m_listSockInfo.begin(); m_iter != m_listSockInfo.end(); ++m_iter)
+    {
+        if((*m_iter)->sock == sockInfo.sock)
+            {
+                m_listSockInfo.erase(m_iter++);
+                break;
+            }
+    }
+
+    close(sockInfo.sock);
+    return NULL;
 }
