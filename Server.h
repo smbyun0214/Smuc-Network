@@ -65,6 +65,4 @@ class Server
         void InsertRow(char* path, char* date, char* ip, char* port);
         void SelectRow();
         void SelectRow(char* path, char* date, char* ip);
-
-        // void* th_Handle_Client(void* arg);
 };
