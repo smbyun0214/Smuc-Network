@@ -236,6 +236,7 @@ void Server::Initialize()
 }
 
 
+void* th_Handle_Client(void* arg);
 void Server::RunReceive()
 {
     while(1)
@@ -244,28 +245,34 @@ void Server::RunReceive()
 
         pthread_mutex_lock(&m_mutx);
         m_listSockInfo.push_back(&clntInfo);
-        pthread_mutex_unlock(&m_mutx);
 
-        pthread_create(&m_thId, NULL, Server::th_Handle_Client, (void*) &clntInfo);
+        pthread_create(&m_thId, NULL, th_Handle_Client, (void*) this);
         pthread_detach(m_thId);
+        pthread_mutex_unlock(&m_mutx);
         printf("Connected client IP: %s \n", inet_ntoa(clntInfo.addr.sin_addr));
     }
 }
 
-void* Server::th_Handle_Client(void* arg)
+void* th_Handle_Client(void* arg)
 {    
-    SOCK_INFO& sockInfo = *((SOCK_INFO*) arg);
-    ReceiveList(sockInfo);
+    Server& server = *((Server*) arg);
 
-    for(m_iter = m_listSockInfo.begin(); m_iter != m_listSockInfo.end(); ++m_iter)
+    list<SOCK_INFO*>& listSockInfo = server.GetListSockInfo();
+    SOCK_INFO* sockInfo = listSockInfo.back();
+
+    server.ReceiveList(*sockInfo);
+
+    list<SOCK_INFO*>::iterator iter;
+    for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)
     {
-        if((*m_iter)->sock == sockInfo.sock)
+        if((*iter)->sock == sockInfo->sock)
             {
-                m_listSockInfo.erase(m_iter++);
+                listSockInfo.erase(iter++);
                 break;
             }
     }
 
-    close(sockInfo.sock);
+    close(sockInfo->sock);
+    delete sockInfo;
     return NULL;
 }

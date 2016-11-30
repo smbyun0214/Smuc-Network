@@ -52,7 +52,10 @@ class Server
     
     public:
         SOCK_INFO& GetSockInfo();
-
+        list<SOCK_INFO*>& GetListSockInfo()
+        {
+            return m_listSockInfo;
+        }
 
 
 
@@ -63,5 +66,5 @@ class Server
         void SelectRow();
         void SelectRow(char* path, char* date, char* ip);
 
-        void* th_Handle_Client(void* arg);
+        // void* th_Handle_Client(void* arg);
 };
