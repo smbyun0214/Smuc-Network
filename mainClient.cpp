@@ -2,9 +2,9 @@
 
 int main(void)
 {
-    char ip[] = "127.0.0.1";
-    // char ip[] = "203.237.179.19";
-    char port[] = "9190";
+    // char ip[] = "127.0.0.1";
+    char ip[] = "203.237.179.19";
+    char port[] = "8000";
     char folder[] = "shared";
 
 
@@ -16,9 +16,11 @@ int main(void)
     client->InitializeClient(ip, port, folder);
     client->InitializeServer(inPort);
 
-    
-    client->AskSocket(sockInfo, ip, port);
+    // SendLIst to Server
+    client->AskSocket(sockInfo);
     client->SendList();
+
+    // Receive List and Ask Client
     // client->ReceiveList();
 
 

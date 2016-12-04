@@ -17,6 +17,10 @@ class Client
         struct iovec            m_recv_list[IOV_LIST_CNT];
         CLNT_DATA_INFO          m_recv_buf[IOV_LIST_CNT];
 
+
+        pthread_t               m_thId;
+        pthread_mutex_t         m_mutx;
+
     public:
         Client();
         ~Client();
@@ -45,6 +49,9 @@ class Client
         void ReceiveList();
         
 
+
+    public:
+        void* thTransClient(SOCK_INFO* sock, char* path)
 
     public:
         SOCK_INFO& GetSockInfo();

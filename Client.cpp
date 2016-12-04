@@ -2,21 +2,12 @@
 
 Client::Client()
 {
-
+    pthread_mutex_init(&m_mutx, NULL);
 }
 
 Client::~Client()
 {
     close(m_sockInfo.sock);
-}
-
-void Client::InitSock(SOCK_INFO& sockInfo, char *ip, char *port)
-{
-    sockInfo.sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if(sockInfo.sock == -1)
-        exit_message("socket() error!");
-
-    SetAddr(sockInfo.addr, ip, port);
 }
 
 void Client::SetAddr(struct sockaddr_in& addr, char* ip, char* port)
@@ -30,6 +21,15 @@ void Client::SetAddr(struct sockaddr_in& addr, char* ip, char* port)
         addr.sin_addr.s_addr = inet_addr(ip);
 
     addr.sin_port = htons(atoi(port));
+}
+
+void Client::InitSock(SOCK_INFO& sockInfo, char *ip, char *port)
+{
+    sockInfo.sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if(sockInfo.sock == -1)
+        exit_message("socket() error!");
+
+    SetAddr(sockInfo.addr, ip, port);
 }
 
 
@@ -47,13 +47,14 @@ void Client::InitializeServer(char* port)
 }
 
 
-void Client::AskSocket(SOCK_INFO& sockInfo, char *ip, char *port)
+void Client::AskSocket(SOCK_INFO& sockInfo)
 {
     if(connect(sockInfo.sock, (struct sockaddr*) &sockInfo.addr, sizeof(sockInfo.addr)) == -1)
         exit_message("connect() error!");
     else
         puts("connected... ");
 }
+
 
 void Client::SetSharedFolder(char *folder)
 {
@@ -176,15 +177,57 @@ void Client::ReceiveList()
         if(strlen(dataInfo.buf) == 0)
             break;
         
+        pthread_mutex_lock(&m_mutx);
         path = dataInfo.buf;
         ip = dataInfo.ip;
         port = dataInfo.port;
+
+
+
+        pthread_create(&m_thId, NULL, thTransClient, (void*) &dataInfo);
+        pthread_detach(m_thId);
+        pthread_mutex_unlock(&m_mutx);
 
         printf("%s %s %s \n", path, ip, port);
     }
 }
 
 
+void* Clinet::thTransClient(void *arg)
+{
+    char buf[BUF_SIZE];
+    CLNT_DATA_INFO dataInfo = *((CLNT_DATA_INFO*)arg);
+
+    SOCK_INFO* sockInfo = new SOCK_INFO();
+    InitSock(*sockInfo, dataInfo.ip, dataInfo.port);
+    AskSocket(*sockInfo);
+
+    read(sockInfo.sock, dataInfo.buf, BUF_SIZE);
+    /////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+/////////
+
+}
+
+
+void* th_Handle_Server(void *arg);
+void Client::RunReceiveServer()
+{
+    while(1)
+    {
+
+    }
+}
 
 
 

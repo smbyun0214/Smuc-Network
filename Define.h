@@ -18,3 +18,9 @@ typedef struct
     char        ip[IP_SIZE];
     char        port[PORT_SIZE];
 }   CLNT_DATA_INFO;
+
+typedef struct
+{
+	SOCK_INFO 		sockInfo;
+	CLNT_DATA_INFO 	dataInfo;
+}	CLNT_ASK_INFO;
