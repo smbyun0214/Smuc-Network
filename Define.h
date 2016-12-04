@@ -11,7 +11,7 @@ typedef struct{
 }   SOCK_INFO;
 
 
-typedef struct clnt_data_info
+typedef struct
 {
     char        buf[BUF_SIZE];
     time_t      modTime;
