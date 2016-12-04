@@ -6,10 +6,6 @@ class Server
     private:
         SOCK_INFO   m_sockInfo;
 
-        list<SOCK_INFO*> m_listSockInfo;
-        list<SOCK_INFO*>::iterator m_iter;
-
-
         MYSQL       m_mysql;
         MYSQL*      m_mysqlConnection;
         MYSQL_RES*  m_mysqlResult;
@@ -27,6 +23,9 @@ class Server
         pthread_t               m_thId;
         pthread_mutex_t         m_mutx;
 
+        list<SOCK_INFO*> m_listSockInfo;
+        list<SOCK_INFO*>::iterator m_iter;
+
     public:
         Server();
         ~Server();
@@ -38,31 +37,38 @@ class Server
 
 
         void SetIovBuffer();
+
+    public:
+        void ReceiveList(SOCK_INFO& sockInfo);
+        void SendList(SOCK_INFO& sockInfo);
     
+
     public:
         void Initialize();
         void RunReceive();
 
 
-
-    public:
-        void ReceiveList(SOCK_INFO& sockInfo);
-        void SendList(SOCK_INFO& sockInfo);
-
     
     public:
-        SOCK_INFO& GetSockInfo();
+        SOCK_INFO& GetSockInfo()
+        {
+            return m_sockInfo;
+        }
+
         list<SOCK_INFO*>& GetListSockInfo()
         {
             return m_listSockInfo;
         }
-
+        
+        pthread_mutex_t& GetMutex()
+        {
+            return m_mutx;
+        }
 
 
     public:
         void InitMySQL(char* host, char* user, char* passwd, char* db, char* table);
         void CreateTable(char* table);
         void InsertRow(char* path, char* date, char* ip, char* port);
-        void SelectRow();
-        void SelectRow(char* path, char* date, char* ip);
+        void SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL);
 };

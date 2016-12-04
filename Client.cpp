@@ -7,12 +7,13 @@ Client::Client()
 
 Client::~Client()
 {
-    close(m_sockInfo.sock);
+    close(m_mySockInfo.sock);
 }
 
 void Client::InitSock(SOCK_INFO& sockInfo, char *ip, char *port)
 {
     sockInfo.sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+   
     if(sockInfo.sock == -1)
         exit_message("socket() error!");
 
@@ -32,6 +33,10 @@ void Client::SetAddr(struct sockaddr_in& addr, char* ip, char* port)
     addr.sin_port = htons(atoi(port));
 }
 
+void Client::SetPort(char *port)
+{
+    strcpy(m_port, port);
+}
 
 void Client::InitializeClient(char *ip, char *port, char* folder)
 {
@@ -43,16 +48,33 @@ void Client::InitializeClient(char *ip, char *port, char* folder)
 void Client::InitializeServer(char* port)
 {
     SetPort(port);
-    SetAddr(m_mySockInfo.addr, NULL, port);
+    InitSock(m_mySockInfo, NULL, port);
+
+    if(bind(m_mySockInfo.sock, (struct sockaddr*) &m_mySockInfo.addr, sizeof(m_mySockInfo.addr)) == -1)
+        exit_message("bind() error!");
+
+    if(listen(m_mySockInfo.sock, 5) == -1)
+        exit_message("listen() error");
 }
 
 
-void Client::AskSocket(SOCK_INFO& sockInfo, char *ip, char *port)
+void Client::AskSocket(SOCK_INFO& sockInfo)
 {
     if(connect(sockInfo.sock, (struct sockaddr*) &sockInfo.addr, sizeof(sockInfo.addr)) == -1)
         exit_message("connect() error!");
     else
         puts("connected... ");
+}
+
+SOCK_INFO* Client::AcceptSocket(SOCK_INFO& sockInfo)
+{
+    SOCK_INFO* clnt_sockInfo = new SOCK_INFO();
+    socklen_t clnt_addr_sz = sizeof(clnt_sockInfo->addr);
+    clnt_sockInfo->sock = accept(m_mySockInfo.sock, (struct sockaddr*) &clnt_sockInfo->addr, &clnt_addr_sz);
+    if(clnt_sockInfo->sock == -1)
+        exit_message("accept() error!");
+
+    return clnt_sockInfo;
 }
 
 void Client::SetSharedFolder(char *folder)
@@ -74,11 +96,6 @@ void Client::SetIovBuffer()
     memset(m_send_buf, 0, sizeof(m_send_buf));
 }
 
-void Client::SetPort(char *port)
-{
-    strcpy(m_port, port);
-}
-
 
 void Client::_SendList(char *path, time_t modTime, bool flag = false)
 {
@@ -88,7 +105,6 @@ void Client::_SendList(char *path, time_t modTime, bool flag = false)
     {
         if(iCnt != 0)
         {
-            ddb
             writev(m_sockInfo.sock, m_send_list, iCnt + 1);
             send(m_sockInfo.sock, NULL, 0, MSG_OOB);
         }
@@ -157,40 +173,143 @@ void Client::ExploreDirectory(char *path)
 void Client::SendList()
 {
     ExploreDirectory(m_shared);
-    _SendList(NULL, NULL, true);
+    _SendList(NULL, 0, true);
+    // shutdown(m_sockInfo.sock, SHUT_WR);
 }
 
 
+void* th_Handle_Download(void* arg);
 void Client::ReceiveList()
 {
     int iRead;
     CLNT_DATA_INFO dataInfo;
+    SOCK_INFO* sockInfo;
 
     char* path;
     char* ip;
     char* port;
 
+
     while((iRead = readv(m_sockInfo.sock, m_recv_list, 1) != 0))
     {
         dataInfo = m_recv_buf[0];
+
         if(strlen(dataInfo.buf) == 0)
             break;
-        
-        path = dataInfo.buf;
-        ip = dataInfo.ip;
-        port = dataInfo.port;
 
-        printf("%s %s %s \n", path, ip, port);
+        pthread_mutex_lock(&m_mutx);
+
+        pthread_create(&m_thId, NULL, th_Handle_Download, (void*) this);
+        pthread_detach(m_thId);
     }
 }
 
 
+void* th_Handle_Download(void* arg)
+{    
+    Client& client = (*(Client*) arg);
 
 
+    SOCK_INFO* sockInfo = new SOCK_INFO();
+    CLNT_DATA_INFO dataInfo = client.GetRecvBuf()[0];
+
+    pthread_mutex_t& mutex = client.GetMutex();
+
+    client.InitSock(*sockInfo, dataInfo.ip, dataInfo.port);
+    client.AskSocket(*sockInfo);
+
+    write(sockInfo->sock, dataInfo.buf, BUF_SIZE);
+
+    pthread_mutex_unlock(&mutex);
+
+    printf("%s ( %s ) \t%s \n", dataInfo.ip, dataInfo.port, dataInfo.buf);
 
 
+    FILE* fp = fopen(dataInfo.buf, "w");
+    int fd = fileno(fp);
 
-SOCK_INFO& Client::GetSockInfo()
+
+    int iFileRead;
+    char buf[BUF_SIZE];
+
+    while((iFileRead = read(sockInfo->sock, buf, BUF_SIZE)) != 0)
+        write(fd, buf, iFileRead);
+
+
+    fclose(fp);
+    close(fd);
+
+    close(sockInfo->sock);
+    delete sockInfo;
+    return NULL;
+}
+
+
+void Client::RunSendList()
 {
-    return m_sockInfo;
+    pthread_mutex_init(&m_mutx, NULL);
+
+    AskSocket(m_sockInfo);
+    SendList();
+    ReceiveList();
+}
+
+
+void* th_Handle_Upload(void* arg);
+void Client::ReceivePath()
+{
+    int iRead;
+    char path[BUF_SIZE];
+    
+     FILE * fp;
+     int fd;
+     char buf[BUF_SIZE];
+     while(1)
+    {         
+        SOCK_INFO* clntInfo = AcceptSocket(m_mySockInfo);
+
+        pthread_mutex_lock(&m_mutx);
+        m_listSockInfo.push_back(clntInfo);
+        pthread_create(&m_thId, NULL, th_Handle_Upload, (void*) this);
+        pthread_detach(m_thId);
+
+        printf("Connected client IP: %s \n", inet_ntoa(clntInfo->addr.sin_addr));
+    }
+}
+
+void* th_Handle_Upload(void* arg)
+{    
+    Client* client = (Client*) arg;
+
+    list<SOCK_INFO*>& listSockInfo = client->GetListSockInfo();
+    SOCK_INFO* sockInfo = listSockInfo.back();
+
+    pthread_mutex_t& mutex = client->GetMutex();
+    pthread_mutex_unlock(&mutex);
+
+    char path[BUF_SIZE];
+    read(sockInfo->sock, path, BUF_SIZE);
+    printf("%s \n", path);
+
+    FILE* fp = fopen(path, "r");
+    int fd = fileno(fp);
+
+    int iRead;
+    char buf[BUF_SIZE];
+
+    while((iRead = read(fd, buf, BUF_SIZE)) != 0)
+        write(sockInfo->sock, buf, iRead);
+
+    fclose(fp);
+    close(fd);
+
+    list<SOCK_INFO*>::iterator iter;
+    for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)
+    {
+        if((*iter)->sock == sockInfo->sock)
+            break;
+    }
+
+    close(sockInfo->sock);
+    delete sockInfo;
 }

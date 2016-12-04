@@ -4,7 +4,7 @@ int main(void)
 {
     char ip[] = "127.0.0.1";
     // char ip[] = "203.237.179.19";
-    char port[] = "9190";
+    char port[] = "9199";
     char folder[] = "shared";
 
 
@@ -14,12 +14,16 @@ int main(void)
     SOCK_INFO& sockInfo = client->GetSockInfo();
     
     client->InitializeClient(ip, port, folder);
-    client->InitializeServer(inPort);
+    // client->InitializeServer(inPort);
 
-    
-    client->AskSocket(sockInfo, ip, port);
-    client->SendList();
-    // client->ReceiveList();
+
+    // repeat a day
+    client->RunSendList();
+    // client->ReceivePath();
+
+
+
+
 
 
     return 0;

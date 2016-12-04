@@ -9,10 +9,17 @@ Server::~Server()
     close(m_sockInfo.sock);
 }
 
+
+
+
+
+
+
 void Server::InitSock(char *port)
 {
     CreateSocket(m_sockInfo, port);
 }
+
 
 void Server::CreateSocket(SOCK_INFO& sockInfo, char *port)
 {
@@ -40,7 +47,7 @@ SOCK_INFO& Server::AcceptSocket(SOCK_INFO& sockInfo)
     socklen_t clnt_addr_sz = sizeof(clnt_sockInfo->addr);
     clnt_sockInfo->sock = accept(m_sockInfo.sock, (struct sockaddr*) &clnt_sockInfo->addr, &clnt_addr_sz);
     if(clnt_sockInfo->sock == -1)
-        exit_message("socket() error!");
+        exit_message("accept() error!");
 
     return *clnt_sockInfo;
 }
@@ -60,6 +67,11 @@ void Server::SetIovBuffer()
 
 
 
+
+
+
+
+
 void Server::ReceiveList(SOCK_INFO& sockInfo)
 {
     int iRead;
@@ -73,13 +85,12 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
     struct tm localTime;
     char timeBuf[80];
 
-    while((iRead = readv(sockInfo.sock, m_recv_list, 1) != 0))
+    while((iRead = readv(sockInfo.sock, m_recv_list, 1)) != 0)
     {
         dataInfo = m_recv_buf[0];
         if(strlen(dataInfo.buf) == 0)
             break;
         
-
         path = dataInfo.buf;
         clntIp = inet_ntoa(sockInfo.addr.sin_addr);
         clntPort = dataInfo.port;
@@ -124,7 +135,10 @@ void Server::SendList(SOCK_INFO& sockInfo)
     }
 
     if(iCnt != 0 && !sendCheck)
+    {
         writev(sockInfo.sock, m_send_list, iCnt);
+        send(m_sockInfo.sock, NULL, 0, MSG_OOB);
+    }
 }
 
 
@@ -133,13 +147,75 @@ void Server::SendList(SOCK_INFO& sockInfo)
 
 
 
-
-
-
-SOCK_INFO& Server::GetSockInfo()
+void Server::Initialize()
 {
-    return m_sockInfo;
+    SetIovBuffer();
 }
+
+
+void* th_Handle_Client(void* arg);
+void Server::RunReceive()
+{
+    pthread_mutex_init(&m_mutx, NULL);
+    while(1)
+    {
+        SOCK_INFO& clntInfo = AcceptSocket(m_sockInfo);
+
+        pthread_mutex_lock(&m_mutx);
+        m_listSockInfo.push_back(&clntInfo);
+
+        pthread_create(&m_thId, NULL, th_Handle_Client, (void*) this);
+        pthread_detach(m_thId);
+        printf("Connected client IP: %s \n", inet_ntoa(clntInfo.addr.sin_addr));
+    }
+}
+
+void* th_Handle_Client(void* arg)
+{    
+    Server* server = (Server*) arg;
+
+    list<SOCK_INFO*>& listSockInfo = server->GetListSockInfo();
+    SOCK_INFO* sockInfo = listSockInfo.back();
+    pthread_mutex_t& mutex = server->GetMutex();
+
+    pthread_mutex_unlock(&mutex);
+
+    // server->ReceiveList(*sockInfo);
+    
+
+    pthread_mutex_lock(&mutex);
+    ////////////////////////////////////////////
+    // NEED ALGORITHM....
+    // ABOUT DIFF
+    server->SelectRow(NULL, NULL, NULL);
+    ////////////////////////////////////////////
+    server->SendList(*sockInfo);
+    pthread_mutex_unlock(&mutex);
+
+
+    pthread_mutex_lock(&mutex);
+    list<SOCK_INFO*>::iterator iter;
+    for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)
+    {
+        if((*iter)->sock == sockInfo->sock)
+            {
+                listSockInfo.erase(iter++);
+                break;
+            }
+    }
+    pthread_mutex_unlock(&mutex);
+
+    close(sockInfo->sock);
+    delete sockInfo;
+    return NULL;
+}
+
+
+
+
+
+
+
 
 
 void Server::InitMySQL(char* host, char* user, char* passwd, char* db, char* table)
@@ -176,13 +252,8 @@ void Server::InsertRow(char* path, char* date, char* ip, char* port)
         exit_message("mysql_query error() : insert values");
 }
 
-void Server::SelectRow()
-{
-    SelectRow(NULL, NULL, NULL);
-}
 
-
-void Server::SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL)
+void Server::SelectRow(char* path, char* date, char* ip)
 {
     memset(m_sql, 0, BUF_SIZE);
 
@@ -227,52 +298,4 @@ void Server::SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL)
     m_mysqlResult = mysql_store_result(m_mysqlConnection);
     if (m_mysqlResult == NULL)
         exit_message("mysql_store_result() error!");
-}
-
-void Server::Initialize()
-{
-    pthread_mutex_init(&m_mutx, NULL);
-    SetIovBuffer();
-}
-
-
-void* th_Handle_Client(void* arg);
-void Server::RunReceive()
-{
-    while(1)
-    {
-        SOCK_INFO& clntInfo = AcceptSocket(m_sockInfo);
-
-        pthread_mutex_lock(&m_mutx);
-        m_listSockInfo.push_back(&clntInfo);
-
-        pthread_create(&m_thId, NULL, th_Handle_Client, (void*) this);
-        pthread_detach(m_thId);
-        pthread_mutex_unlock(&m_mutx);
-        printf("Connected client IP: %s \n", inet_ntoa(clntInfo.addr.sin_addr));
-    }
-}
-
-void* th_Handle_Client(void* arg)
-{    
-    Server& server = *((Server*) arg);
-
-    list<SOCK_INFO*>& listSockInfo = server.GetListSockInfo();
-    SOCK_INFO* sockInfo = listSockInfo.back();
-
-    server.ReceiveList(*sockInfo);
-
-    list<SOCK_INFO*>::iterator iter;
-    for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)
-    {
-        if((*iter)->sock == sockInfo->sock)
-            {
-                listSockInfo.erase(iter++);
-                break;
-            }
-    }
-
-    close(sockInfo->sock);
-    delete sockInfo;
-    return NULL;
 }

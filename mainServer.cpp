@@ -2,11 +2,11 @@
 
 int main(void)
 {
-    char port[] = "9190";
-    
+    char port[] = "9199";
+
     char host[] = "localhost";
     char user[] = "root";
-    char passwd[] = "best";
+    char passwd[] = "tkfkdgo0!!";
     char db[]     = "FileList";
     char table[]  = "lists";
 
@@ -16,10 +16,8 @@ int main(void)
     server->InitMySQL(host, user, passwd, db, table);
     server->Initialize();
     
+    printf("RUN RECEIVE\n");
     server->RunReceive();
-
-    // server->SelectRow();
-    // server->SendList(clntInfo);
     
 
     delete server;
