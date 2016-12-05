@@ -2,10 +2,12 @@
 
 Server::Server()
 {
+    pthread_mutex_init(&m_mutx, NULL);
 }
 
 Server::~Server()
 {
+    pthread_mutex_destroy(&m_mutx);
     close(m_sockInfo.sock);
 }
 
@@ -106,7 +108,7 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
         */
     }
 
-    printf("ReceiveList() called \n");
+    memset(m_recv_buf, 0, sizeof(m_recv_buf));
 }
 
 
@@ -121,7 +123,7 @@ void Server::SendList(SOCK_INFO& sockInfo)
     int num_fields = mysql_num_fields(m_mysqlResult);
     while (row = mysql_fetch_row(m_mysqlResult)) 
     {
-        printf("%s %s %s \n", row[0], row[2], row[3]);
+        printf("\t%s %s %s \n", row[2], row[3], row[0]);
 
         strcpy(m_send_buf[iCnt].buf, row[0]);
         strcpy(m_send_buf[iCnt].ip, row[2]);
@@ -163,7 +165,6 @@ void Server::Initialize()
 void* th_Handle_Client(void* arg);
 void Server::RunReceive()
 {
-    pthread_mutex_init(&m_mutx, NULL);
     while(1)
     {
         SOCK_INFO& clntInfo = AcceptSocket(m_sockInfo);
@@ -182,39 +183,34 @@ void* th_Handle_Client(void* arg)
     Server* server = (Server*) arg;
 
     list<SOCK_INFO*>& listSockInfo = server->GetListSockInfo();
-    SOCK_INFO* sockInfo = listSockInfo.back();
+    SOCK_INFO sockInfo = *listSockInfo.back();
 
+
+    server->ReceiveList(sockInfo);
+    
+    ////////////////////////////////////////////
+    // NEED ALGORITHM....
+    // ABOUT DIFF
+    server->SelectRow(NULL, NULL, NULL);
+    ////////////////////////////////////////////
+
+    server->SendList(sockInfo);
     pthread_mutex_t& mutex = server->GetMutex();
     pthread_mutex_unlock(&mutex);
 
-
-    pthread_mutex_lock(&mutex);
-        server->ReceiveList(*sockInfo);
-        
-        ////////////////////////////////////////////
-        // NEED ALGORITHM....
-        // ABOUT DIFF
-        server->SelectRow(NULL, NULL, NULL);
-        ////////////////////////////////////////////
-
-        server->SendList(*sockInfo);
-    pthread_mutex_unlock(&mutex);
-
-
-    pthread_mutex_lock(&mutex);
     list<SOCK_INFO*>::iterator iter;
     for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)
     {
-        if((*iter)->sock == sockInfo->sock)
+        if((*iter)->sock == sockInfo.sock)
             {
                 listSockInfo.erase(iter++);
                 break;
             }
     }
-    pthread_mutex_unlock(&mutex);
 
-    close(sockInfo->sock);
-    delete sockInfo;
+    close(sockInfo.sock);
+
+    printf("Disconnected client IP: %s \n", inet_ntoa(sockInfo.addr.sin_addr));
     return NULL;
 }
 

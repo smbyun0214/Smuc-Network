@@ -38,7 +38,7 @@ class Client
 
     public:
         void AskSocket(SOCK_INFO& sockInfo);
-        SOCK_INFO& AcceptSocket(SOCK_INFO& sockInfo);
+        SOCK_INFO* AcceptSocket(SOCK_INFO& sockInfo);
 
     public:
         void SetSharedFolder(char* folder);

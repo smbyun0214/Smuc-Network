@@ -2,11 +2,16 @@
 
 Client::Client()
 {
+    pthread_mutex_init(&m_clnt_mutx, NULL);
+    pthread_mutex_init(&m_serv_mutx, NULL);
 
 }
 
 Client::~Client()
 {
+    pthread_mutex_destroy(&m_clnt_mutx);
+    pthread_mutex_destroy(&m_serv_mutx);
+
     close(m_mySockInfo.sock);
 }
 
@@ -66,7 +71,7 @@ void Client::AskSocket(SOCK_INFO& sockInfo)
         puts("connected... ");
 }
 
-SOCK_INFO& Client::AcceptSocket(SOCK_INFO& sockInfo)
+SOCK_INFO* Client::AcceptSocket(SOCK_INFO& sockInfo)
 {
     SOCK_INFO* clnt_sockInfo = new SOCK_INFO();
     socklen_t clnt_addr_sz = sizeof(clnt_sockInfo->addr);
@@ -75,7 +80,7 @@ SOCK_INFO& Client::AcceptSocket(SOCK_INFO& sockInfo)
     if(clnt_sockInfo->sock == -1)
         exit_message("accept() error!");
 
-    return *clnt_sockInfo;
+    return clnt_sockInfo;
 }
 
 void Client::SetSharedFolder(char *folder)
@@ -184,20 +189,33 @@ void Client::ReceiveList()
 {
     int iRead;
     CLNT_DATA_INFO dataInfo;
+    static int i = 0;
 
 
-    while((iRead = readv(m_sockInfo.sock, m_recv_list, 1) != 0))
+    while(1)
     {
-        dataInfo = m_recv_buf[0];
-        printf(">> %s[%s] %s \n", dataInfo.ip, dataInfo.port, dataInfo.buf);
-
-        if(strlen(dataInfo.buf) == 0)
+        pthread_mutex_lock(&m_clnt_mutx);
+        iRead = readv(m_sockInfo.sock, m_recv_list, 1);
+        pthread_mutex_unlock(&m_clnt_mutx);
+        
+        if(iRead == 0)
             break;
+
+
+        else if(strlen(m_recv_buf[0].buf) == 0)
+            continue;
+        
 
         pthread_mutex_lock(&m_clnt_mutx);
 
+        dataInfo = m_recv_buf[0];
+        printf("\t %s %s %s \n", dataInfo.ip, dataInfo.port, dataInfo.buf);
+
+
         pthread_create(&m_thId, NULL, th_Handle_Download, (void*) this);
         pthread_detach(m_thId);
+
+        i++;
     }
 
 }
@@ -209,8 +227,6 @@ void* th_Handle_Download(void* arg)
 
     SOCK_INFO* sockInfo = new SOCK_INFO();
     CLNT_DATA_INFO dataInfo = client->GetRecvBuf()[0];
-    printf("dataInfo in Download thread\n");
-    printf("%s %s %s \n", dataInfo.buf, dataInfo.ip, dataInfo.port);
 
     pthread_mutex_t& mutex = client->GetClientMutex();
 
@@ -218,6 +234,8 @@ void* th_Handle_Download(void* arg)
     client->AskSocket(*sockInfo);
 
     write(sockInfo->sock, dataInfo.buf, BUF_SIZE);
+
+    pthread_mutex_unlock(&mutex);
 
     FILE* fp = fopen(dataInfo.buf, "w");
     int fd = fileno(fp);
@@ -230,44 +248,36 @@ void* th_Handle_Download(void* arg)
 
 
     fclose(fp);
-    close(fd);
     close(sockInfo->sock);
-    printf("<< %s \n", dataInfo.buf);
+    printf("Downloaded : %s %s %s \n", dataInfo.ip, dataInfo.port, dataInfo.buf);
 
     delete sockInfo;
-    pthread_mutex_unlock(&mutex);
     return NULL;
 }
 
 
 void Client::RunSendList()
 {
-    pthread_mutex_init(&m_clnt_mutx, NULL);
+    AskSocket(m_sockInfo);
+    SendList();
+    ReceiveList();
 
-    while(1)
-    {
-        AskSocket(m_sockInfo);
-        SendList();
-        ReceiveList();
-        sleep(100);
-    }
 }
 
 
 void* th_Handle_Upload(void* arg);
 void Client::ReceivePath()
 {
-    pthread_mutex_init(&m_serv_mutx, NULL);
     while(1)
     {
-        SOCK_INFO& clntInfo = AcceptSocket(m_mySockInfo);
+        SOCK_INFO* clntInfo = AcceptSocket(m_mySockInfo);
 
         pthread_mutex_lock(&m_serv_mutx);
-        m_listSockInfo.push_back(&clntInfo);
+        m_listSockInfo.push_back(clntInfo);
 
         pthread_create(&m_thId, NULL, th_Handle_Upload, (void*) this);
         pthread_detach(m_thId);
-        printf("Connected client IP: %s \n", inet_ntoa(clntInfo.addr.sin_addr));
+        printf("Connected client IP: %s \n", inet_ntoa(clntInfo->addr.sin_addr));
     }
 }
 
@@ -277,13 +287,15 @@ void* th_Handle_Upload(void* arg)
     Client* client = (Client*) arg;
 
     list<SOCK_INFO*>& listSockInfo = client->GetListSockInfo();
-    SOCK_INFO* sockInfo = listSockInfo.back();
+    SOCK_INFO sockInfo = *listSockInfo.back();
+
     pthread_mutex_t& mutex = client->GetServerMutex();
 
 
+    // Read FIle and Write to socket.
     char path[BUF_SIZE];
-    read(sockInfo->sock, path, BUF_SIZE);
-    printf(">> %s \n", path);
+    read(sockInfo.sock, path, BUF_SIZE);
+    printf("client >> server: %s \n", path);
 
     FILE* fp = fopen(path, "r");
     int fd = fileno(fp);
@@ -294,19 +306,18 @@ void* th_Handle_Upload(void* arg)
     char buf[BUF_SIZE];
 
     while((iRead = read(fd, buf, BUF_SIZE)) != 0)
-        write(sockInfo->sock, buf, iRead);
+        write(sockInfo.sock, buf, iRead);
 
 
     list<SOCK_INFO*>::iterator iter;
     for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)
     {
-        if((*iter)->sock == sockInfo->sock)
+        if((*iter)->sock == sockInfo.sock)
             break;
     }
 
     fclose(fp);
-    close(fd);
-    close(sockInfo->sock);
-    delete sockInfo;
+    close(sockInfo.sock);
+
     return NULL;
 }
