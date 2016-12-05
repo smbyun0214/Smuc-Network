@@ -261,6 +261,9 @@ void Client::RunSendList()
     AskSocket(m_sockInfo);
     SendList();
     ReceiveList();
+    
+    // Need time receive files;
+    sleep(100);
 
 }
 
