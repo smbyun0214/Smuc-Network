@@ -91,6 +91,9 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
         if(strlen(dataInfo.buf) == 0)
             break;
         
+
+        // INSERT MYSQL
+        /*
         path = dataInfo.buf;
         clntIp = inet_ntoa(sockInfo.addr.sin_addr);
         clntPort = dataInfo.port;
@@ -100,27 +103,31 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
         strftime(timeBuf, 80, "%Y-%m-%d %H:%M:%S", &localTime);
 
         InsertRow(path, timeBuf, clntIp, clntPort);
+        */
     }
+
+    printf("ReceiveList() called \n");
 }
 
 
 void Server::SendList(SOCK_INFO& sockInfo)
 {
     bool sendCheck = false;
-    int iCnt = 0;
+    static int iCnt = 0;
 
     memset(m_send_buf, 0, sizeof(m_send_buf));
 
     MYSQL_ROW row;
     int num_fields = mysql_num_fields(m_mysqlResult);
-    while ((row = mysql_fetch_row(m_mysqlResult))) 
+    while (row = mysql_fetch_row(m_mysqlResult)) 
     {
+        printf("%s %s %s \n", row[0], row[2], row[3]);
+
         strcpy(m_send_buf[iCnt].buf, row[0]);
         strcpy(m_send_buf[iCnt].ip, row[2]);
         strcpy(m_send_buf[iCnt].port, row[3]);
 
         iCnt++;
-
         if(iCnt == 10)
         {
             writev(sockInfo.sock, m_send_list, iCnt);
@@ -176,20 +183,21 @@ void* th_Handle_Client(void* arg)
 
     list<SOCK_INFO*>& listSockInfo = server->GetListSockInfo();
     SOCK_INFO* sockInfo = listSockInfo.back();
-    pthread_mutex_t& mutex = server->GetMutex();
 
+    pthread_mutex_t& mutex = server->GetMutex();
     pthread_mutex_unlock(&mutex);
 
-    // server->ReceiveList(*sockInfo);
-    
 
     pthread_mutex_lock(&mutex);
-    ////////////////////////////////////////////
-    // NEED ALGORITHM....
-    // ABOUT DIFF
-    server->SelectRow(NULL, NULL, NULL);
-    ////////////////////////////////////////////
-    server->SendList(*sockInfo);
+        server->ReceiveList(*sockInfo);
+        
+        ////////////////////////////////////////////
+        // NEED ALGORITHM....
+        // ABOUT DIFF
+        server->SelectRow(NULL, NULL, NULL);
+        ////////////////////////////////////////////
+
+        server->SendList(*sockInfo);
     pthread_mutex_unlock(&mutex);
 
 

@@ -17,8 +17,6 @@ int main(void)
     client1->InitializeServer(inPort);
 
 
-
-    printf("RECEIVE PATH\n");
     // repeat a day
     // client->RunSendList();
     client1->ReceivePath();

@@ -17,7 +17,8 @@ class Client
         CLNT_DATA_INFO              m_recv_buf[IOV_LIST_CNT];
 
         pthread_t                   m_thId;
-        pthread_mutex_t             m_mutx;
+        pthread_mutex_t             m_clnt_mutx;
+        pthread_mutex_t             m_serv_mutx;
 
         list<SOCK_INFO*>            m_listSockInfo;
         list<SOCK_INFO*>::iterator  m_iter;
@@ -37,7 +38,7 @@ class Client
 
     public:
         void AskSocket(SOCK_INFO& sockInfo);
-        SOCK_INFO* AcceptSocket(SOCK_INFO& sockInfo);
+        SOCK_INFO& AcceptSocket(SOCK_INFO& sockInfo);
 
     public:
         void SetSharedFolder(char* folder);
@@ -81,8 +82,13 @@ class Client
             return m_listSockInfo;
         }
         
-        pthread_mutex_t& GetMutex()
+        pthread_mutex_t& GetClientMutex()
         {
-            return m_mutx;
+            return m_clnt_mutx;
+        }
+
+        pthread_mutex_t& GetServerMutex()
+        {
+            return m_serv_mutx;
         }
 };

@@ -16,7 +16,6 @@ int main(void)
     server->InitMySQL(host, user, passwd, db, table);
     server->Initialize();
     
-    printf("RUN RECEIVE\n");
     server->RunReceive();
     
 
