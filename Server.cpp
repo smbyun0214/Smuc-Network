@@ -91,7 +91,7 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
     {
         dataInfo = m_recv_buf[0];
         if(strlen(dataInfo.buf) == 0)
-            break;
+            continue;
         
 
         // INSERT MYSQL

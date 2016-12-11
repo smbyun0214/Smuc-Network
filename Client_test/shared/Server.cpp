@@ -87,11 +87,15 @@ void Server::ReceiveList(SOCK_INFO& sockInfo)
     struct tm localTime;
     char timeBuf[80];
 
+    printf("ReceiveList \n");
+
     while((iRead = readv(sockInfo.sock, m_recv_list, 1)) != 0)
     {
         dataInfo = m_recv_buf[0];
+        printf("%s \n", dataInfo.buf);
+
         if(strlen(dataInfo.buf) == 0)
-            break;
+            continue;
         
 
         // INSERT MYSQL
@@ -175,6 +179,7 @@ void Server::RunReceive()
         pthread_create(&m_thId, NULL, th_Handle_Client, (void*) this);
         pthread_detach(m_thId);
         printf("Connected client IP: %s \n", inet_ntoa(clntInfo.addr.sin_addr));
+    printf("ReceiveList \n");
     }
 }
 
@@ -185,6 +190,8 @@ void* th_Handle_Client(void* arg)
     list<SOCK_INFO*>& listSockInfo = server->GetListSockInfo();
     SOCK_INFO sockInfo = *listSockInfo.back();
 
+    pthread_mutex_t& mutex = server->GetMutex();
+    pthread_mutex_unlock(&mutex);
 
     server->ReceiveList(sockInfo);
     
@@ -195,8 +202,6 @@ void* th_Handle_Client(void* arg)
     ////////////////////////////////////////////
 
     server->SendList(sockInfo);
-    pthread_mutex_t& mutex = server->GetMutex();
-    pthread_mutex_unlock(&mutex);
 
     list<SOCK_INFO*>::iterator iter;
     for(iter = listSockInfo.begin(); iter != listSockInfo.end(); ++iter)

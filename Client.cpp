@@ -180,7 +180,7 @@ void Client::SendList()
 {
     ExploreDirectory(m_shared);
     _SendList(NULL, 0, true);
-    // shutdown(m_sockInfo.sock, SHUT_WR);
+    shutdown(m_sockInfo.sock, SHUT_WR);
 }
 
 
