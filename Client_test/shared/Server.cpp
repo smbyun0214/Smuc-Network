@@ -121,7 +121,7 @@ void Server::SendList(SOCK_INFO& sockInfo)
 
     MYSQL_ROW row;
     int num_fields = mysql_num_fields(m_mysqlResult);
-    while ((row = mysql_fetch_row(m_mysqlResult)) != 0) 
+    while (row = mysql_fetch_row(m_mysqlResult)) 
     {
         printf("\t%s %s %s \n", row[2], row[3], row[0]);
 
@@ -187,6 +187,7 @@ void* th_Handle_Client(void* arg)
 
 
     server->ReceiveList(sockInfo);
+    
     ////////////////////////////////////////////
     // NEED ALGORITHM....
     // ABOUT DIFF

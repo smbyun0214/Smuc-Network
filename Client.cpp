@@ -237,7 +237,7 @@ void* th_Handle_Download(void* arg)
 
     pthread_mutex_unlock(&mutex);
 
-    FILE* fp = fopen(dataInfo.buf, "w");
+    FILE* fp = fopen(dataInfo.buf, "wb");
     int fd = fileno(fp);
 
     int iFileRead;
@@ -263,7 +263,7 @@ void Client::RunSendList()
     ReceiveList();
     
     // Need time receive files;
-    sleep(100);
+    sleep(1);
 
 }
 
@@ -300,7 +300,7 @@ void* th_Handle_Upload(void* arg)
     read(sockInfo.sock, path, BUF_SIZE);
     printf("client >> server: %s \n", path);
 
-    FILE* fp = fopen(path, "r");
+    FILE* fp = fopen(path, "rb");
     int fd = fileno(fp);
 
     pthread_mutex_unlock(&mutex);

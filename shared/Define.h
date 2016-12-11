@@ -13,8 +13,7 @@ struct sock_info{
     {
     	sock = ref.sock;
     	memcpy(&addr, &ref.addr, sizeof(struct sockaddr_in));
-
-        return *this;
+       	printf("sock info operator called\n");
     };
 
 };
@@ -32,8 +31,7 @@ struct clnt_data_info
     	modTime = ref.modTime;
     	strcpy(ip, ref.ip);
     	strcpy(port, ref.port);
-
-        return *this;
+    	printf("data info operator called\n");
     }
 
 };

@@ -8,7 +8,7 @@ int main(void)
     char folder[] = "shared";
 
 
-    char inPort[] = "9193";
+    char inPort[] = "9191";
 
     Client *client = new Client();
     SOCK_INFO& sockInfo = client->GetSockInfo();

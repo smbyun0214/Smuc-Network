@@ -23,3 +23,15 @@
 using namespace std;
 
 
+
+
+#define __DEBUG__
+
+
+#ifdef __DEBUG__
+#define ddb printf("!!!!!!!!!!!! CONFIRM !!!!!!!!!!!!! \n");
+
+
+
+
+#endif
