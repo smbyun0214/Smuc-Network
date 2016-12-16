@@ -93,10 +93,10 @@ void Client::SetIovBuffer()
     for(int i = 0; i < IOV_LIST_CNT; i++)
     {
         m_send_list[i].iov_base	    = &m_send_buf[i];
-        m_send_list[i].iov_len 		= sizeof(m_send_buf);
+        m_send_list[i].iov_len 		= sizeof(m_send_buf[i]);
         
         m_recv_list[i].iov_base	    = &m_recv_buf[i];
-        m_recv_list[i].iov_len 		= sizeof(m_recv_buf);
+        m_recv_list[i].iov_len 		= sizeof(m_recv_buf[i]);
     }
 
     memset(m_send_buf, 0, sizeof(m_send_buf));
@@ -106,12 +106,13 @@ void Client::SetIovBuffer()
 void Client::_SendList(char *path, time_t modTime, bool flag = false)
 {
     static int iCnt = 0;
+    struct tm localTime;
 
     if(flag == true)
     {
         if(iCnt != 0)
         {
-            writev(m_sockInfo.sock, m_send_list, iCnt + 1);
+            writev(m_sockInfo.sock, m_send_list, iCnt);
             send(m_sockInfo.sock, NULL, 0, MSG_OOB);
         }
     
@@ -119,9 +120,12 @@ void Client::_SendList(char *path, time_t modTime, bool flag = false)
     }
 
     strcpy(m_send_buf[iCnt].buf, path);
-    m_send_buf[iCnt].modTime = modTime;
-    strcpy(m_send_buf[iCnt].port, m_port);
-    
+
+    localtime_r(&modTime, &localTime);
+    strftime(m_send_buf[iCnt].modTime, TIME_SIZE, "%Y-%m-%d %H:%M:%S", &localTime);
+
+    strcpy(m_send_buf[iCnt].port, m_port); 
+
     iCnt++;
 
     if(iCnt == 10)   
@@ -173,6 +177,7 @@ void Client::ExploreDirectory(char *path)
         }
     }
 
+    closedir(dir);
     return;
 }
 
@@ -197,23 +202,22 @@ void Client::ReceiveList()
         pthread_mutex_lock(&m_clnt_mutx);
         iRead = readv(m_sockInfo.sock, m_recv_list, 1);
         pthread_mutex_unlock(&m_clnt_mutx);
-        
+
         if(iRead == 0)
             break;
-
 
         else if(strlen(m_recv_buf[0].buf) == 0)
             continue;
         
 
-        pthread_mutex_lock(&m_clnt_mutx);
+        // pthread_mutex_lock(&m_clnt_mutx);
 
         dataInfo = m_recv_buf[0];
         printf("\t %s %s %s \n", dataInfo.ip, dataInfo.port, dataInfo.buf);
 
 
-        pthread_create(&m_thId, NULL, th_Handle_Download, (void*) this);
-        pthread_detach(m_thId);
+        // pthread_create(&m_thId, NULL, th_Handle_Download, (void*) this);
+        // pthread_detach(m_thId);
 
         i++;
     }

@@ -16,4 +16,4 @@ g++ -o client mainClient.cpp $cmd -I. -D_REENTRANT -lpthread $libs $include
 g++ -o Client_test/client_tmp mainClient1.cpp $cmd -I. -D_REENTRANT -lpthread $libs $include
 g++ -o server mainServer.cpp $cmd -I. -D_REENTRANT -lpthread $libs $include
 echo "G++ COMPILED"
-# ./server
+#./server 9199

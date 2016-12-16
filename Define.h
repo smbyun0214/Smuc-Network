@@ -1,8 +1,10 @@
 #pragma once
 #define IOV_LIST_CNT		10
 #define BUF_SIZE			1024
+#define SQL_SIZE            2048
 #define IP_SIZE             20
 #define PORT_SIZE           10
+#define TIME_SIZE           30
 
 
 struct sock_info{
@@ -22,14 +24,14 @@ struct sock_info{
 struct clnt_data_info
 {
     char        buf[BUF_SIZE];
-    time_t      modTime;
+    char        modTime[TIME_SIZE];
     char        ip[IP_SIZE];
     char        port[PORT_SIZE];
 
     clnt_data_info operator=(clnt_data_info& ref)
     {
     	strcpy(buf, ref.buf);
-    	modTime = ref.modTime;
+        strcpy(modTime, ref.modTime);
     	strcpy(ip, ref.ip);
     	strcpy(port, ref.port);
 
@@ -40,3 +42,5 @@ struct clnt_data_info
 
 typedef struct sock_info SOCK_INFO;
 typedef struct clnt_data_info CLNT_DATA_INFO;
+
+enum MODIFIED {DELETE = -1, NONE = 0, MODIFY = 1} ;

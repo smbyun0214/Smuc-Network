@@ -14,12 +14,14 @@ int main(void)
     SOCK_INFO& sockInfo = client->GetSockInfo();
     
     client->InitializeClient(ip, port, folder);
-    // client->InitializeServer(inPort);
+    client->InitializeServer(inPort);
 
 
     // repeat a day
     client->RunSendList();
     // client->ReceivePath();
+
+    delete client;
 
 
 

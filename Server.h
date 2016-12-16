@@ -6,10 +6,10 @@ class Server
     private:
         SOCK_INFO   m_sockInfo;
 
-        MYSQL       m_mysql;
+        MYSQL*      m_mysql;
         MYSQL*      m_mysqlConnection;
         MYSQL_RES*  m_mysqlResult;
-        char        m_sql[BUF_SIZE];
+        char        m_sql[SQL_SIZE];
 
 
 
@@ -22,9 +22,13 @@ class Server
 
         pthread_t               m_thId;
         pthread_mutex_t         m_mutx;
+        int                     m_thCnt;
 
         list<SOCK_INFO*> m_listSockInfo;
-        list<SOCK_INFO*>::iterator m_iter;
+
+        list<CLNT_DATA_INFO*>   m_modified_list;
+        list<CLNT_DATA_INFO*>   m_deleted_list;
+
 
     public:
         Server();
@@ -64,11 +68,39 @@ class Server
         {
             return m_mutx;
         }
+        MYSQL_RES* GetMySQLResult()
+        {
+            return m_mysqlResult;
+        }
+        void DecrementThreadCount()
+        {
+            m_thCnt--;
+        }
+        int GetThreadCount()
+        {
+            return m_thCnt;
+        }
 
 
     public:
         void InitMySQL(char* host, char* user, char* passwd, char* db, char* table);
+        void CreateTableUser();
         void CreateTable(char* table);
+        
+        void InitColumnTemp(char* ip, char* port);
+        void InitColumn(char* table);
+        
         void InsertRow(char* path, char* date, char* ip, char* port);
-        void SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL);
+        
+        void SetModifiedColumn();
+        void SetDeletedColumn();
+        
+        void DeleteRow(char* path, char* ip, char* port);
+        void SelectRow(char* path = NULL, char* date = NULL, char* ip = NULL, char* modified = NULL);
+
+    public:
+        void SetModifiedList();
+        void SetDeletedList();
+        void ReleaseDataList(list<CLNT_DATA_INFO*>& list_data);
+
 };

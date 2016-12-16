@@ -13,12 +13,12 @@ int main(void)
     Client *client1 = new Client();
     SOCK_INFO& sockInfo = client1->GetSockInfo();
     
-    // client->InitializeClient(ip, port, folder);
+    client1->InitializeClient(ip, port, folder);
     client1->InitializeServer(inPort);
 
 
     // repeat a day
-    // client->RunSendList();
+    client1->RunSendList();
     client1->ReceivePath();
 
 
