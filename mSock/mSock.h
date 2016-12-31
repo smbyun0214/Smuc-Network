@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +19,10 @@ public:
 public:
 	void Initialize(char ip[], char port[]);
 	void Connect();
-	void Accept(int* accept_sock, struct sockaddr_in* accept_sock_addr);
+	void Accept(int& accept_sock, struct sockaddr_in& accept_sock_addr);
 	void Release();
+	int GetSock()
+	{
+		return sock;
+	}
 };

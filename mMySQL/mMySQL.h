@@ -1,3 +1,5 @@
+#pragma once
+
 #include <my_global.h>
 #include <mysql.h>
 
@@ -18,7 +20,14 @@ public:
 	void CreateDatabase(char database[]);
 	void CreateTable(char table[], char attr[][SQL_SIZE], int attr_len);
 	void InsertRow(char table[], char row[][SQL_SIZE], int row_len);
+	void ReplaceRow(char table[], char row[][SQL_SIZE], int row_len);
 	MYSQL_RES* SelectRow(char table[], char where[][SQL_SIZE], int where_len);
 	void DeleteRow(char table[], char where[][SQL_SIZE], int where_len);
 	void ShowResult();
+
+public:
+	MYSQL* GetConnection()
+	{
+		return connection;
+	}
 };

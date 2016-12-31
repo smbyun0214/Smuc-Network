@@ -1,28 +1,46 @@
-#include "mMySQL.h"
-#include "json.hpp"
+#pragma once
 
-#include <iostream>
-#include <string>
-using namespace std;
-using json = nlohmann::json;
+#include "Header.h"
+#include "Define.h"
 
 #define BUF_SIZE 1024
 
-class Client
+class Client : protected mSock
 {
 private:
-    string env_path;
-    json env;
+    string      env_path;
+    json        env;
 
-    mMySQL m_mysql;
+    char*       m_folder;
+
+    mSock       m_client;
+    mSock       m_server;
+
+    struct iovec        m_recv_list[IOV_LIST_CNT];
+    struct iovec        m_send_list[IOV_LIST_CNT];
+
+    DATA_INFO           m_recv_info;
+    DATA_INFO           m_send_info;
+
 
 public:
     Client(string& path);
+    ~Client();
+
+    void Initialize();
 
 public:
     void LoadEnvironment();
-    void Initialize();
-    void InitializeDatabase();
+    void InitializeClient();
+    void InitializeServer();
+    void InitializeFolder();
+    void SetIov(struct iovec (&iov)[IOV_LIST_CNT], DATA_INFO& data);
+
+public:
+    void _SendList(char *path, time_t modTime, bool flag);
+    void ExploreDirectory(char* path);
+    void SendList();
+
 
 
     // private:

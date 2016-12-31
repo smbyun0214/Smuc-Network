@@ -7,7 +7,7 @@ mSock::mSock()
 
 mSock::~mSock()
 {
-
+	Release();
 }
 
 
@@ -62,12 +62,12 @@ void mSock::Connect()
 }
 
 
-void mSock::Accept(int* accept_sock, struct sockaddr_in* accept_sock_addr)
+void mSock::Accept(int& accept_sock, struct sockaddr_in& accept_sock_addr)
 {
-	socklen_t addr_sz = sizeof(*accept_sock_addr);
-	*accept_sock = accept(sock, (struct sockaddr*) accept_sock_addr, &addr_sz);
+	socklen_t addr_sz = sizeof(accept_sock_addr);
+	accept_sock = accept(sock, (struct sockaddr*) &accept_sock_addr, &addr_sz);
 
-	if(*accept_sock == -1)
+	if(accept_sock == -1)
 	{
 		perror("accept");
 		exit(1);

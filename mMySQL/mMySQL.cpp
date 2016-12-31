@@ -90,6 +90,33 @@ void mMySQL::InsertRow(char table[], char row[][SQL_SIZE], int row_len)
 	}
 }
 
+void mMySQL::ReplaceRow(char table[], char row[][SQL_SIZE], int row_len)
+{
+	int i;
+	char tmpSql[SQL_SIZE];
+	char rowSql[SQL_SIZE];
+
+	memset(sql, 0, SQL_SIZE);
+	memset(tmpSql, 0, SQL_SIZE);
+	memset(rowSql, 0, SQL_SIZE);
+
+	for(i = 0; i < row_len; i++)
+	{
+		strcat(tmpSql, row[i]);
+		strcat(tmpSql, ", ");
+	}
+
+	strncpy(rowSql, tmpSql, strlen(tmpSql) - 2);
+	sprintf(sql, "REPLACE INTO %s VALUES(%s)", table, rowSql);
+	state = mysql_query(connection, sql);
+	if(state != 0)
+	{
+		printf("%s \n", sql);
+		perror("mysql_query[replace row]");
+		exit(1);
+	}
+}
+
 MYSQL_RES* mMySQL::SelectRow(char table[], char where[][SQL_SIZE], int where_len)
 {
 	int i;
